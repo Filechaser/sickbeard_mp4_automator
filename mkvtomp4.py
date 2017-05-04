@@ -607,9 +607,17 @@ class MkvtoMp4:
         }
 
         # If a CRF option is set, override the determine bitrate
+        # If a CRF option is set, override the determine bitrate Never use copy to remove spikes
         if self.vcrf:
+            options['video']['codec'] = self.video_codec[0]
+            # Change CRF to lossless if maxbitrate is lower
+            if self.video_bitrate is not None and vbr > self.video_bitrate:
+                options['video']['crf'] = self.vcrf
+                self.log.debug("Set CRF to your chosen non-lossless")
+            else:
+                options['video']['crf'] = int(18)
+                self.log.debug("Set CRF to lossless")
             del options['video']['bitrate']
-            options['video']['crf'] = self.vcrf
 
         if len(options['subtitle']) > 0:
             options['preopts'].append('-fix_sub_duration')
