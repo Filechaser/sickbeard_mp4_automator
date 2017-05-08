@@ -34,8 +34,8 @@ ssl = False
 web_root = 
 
 [MP4]
-ffmpeg = C:\ProgramData\chocolatey\lib\ffmpeg\tools\ffmpeg-3.2.4-win64-static\bin\ffmpeg.exe
-ffprobe = C:\ProgramData\chocolatey\lib\ffmpeg\tools\ffmpeg-3.2.4-win64-static\bin\ffprobe.exe
+ffmpeg = ffmpeg
+ffprobe = ffprobe
 threads = auto
 output_directory = 
 copy_to = 
