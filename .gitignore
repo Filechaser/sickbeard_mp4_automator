@@ -1,6 +1,8 @@
 ###############################
 ## sickbeard-mp4-automator
 #############################
+#MACOSX Develop
+.DS_Store
 autoProcess.ini
 
 #################
