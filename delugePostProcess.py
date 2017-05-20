@@ -16,7 +16,6 @@ log.info("Deluge post processing started.")
 
 settings = ReadSettings(os.path.dirname(sys.argv[0]), "autoProcess.ini")
 categories = [settings.deluge['sb'], settings.deluge['cp'], settings.deluge['sonarr'], settings.deluge['radarr'], settings.deluge['sr'], settings.deluge['bypass']]
-remove = settings.deluge['remove']
 
 if len(sys.argv) < 4:
     log.error("Not enough command line parameters present, are you launching this from deluge?")
@@ -123,9 +122,3 @@ if delete_dir:
             log.debug("Successfully removed tempoary directory %s." % delete_dir)
         except:
             log.exception("Unable to delete temporary directory.")
-
-if remove:
-    try:
-        client.call('core.remove_torrent', torrent_id, True)
-    except:
-        log.exception("Unable to remove torrent from deluge.")
