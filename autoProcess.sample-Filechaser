@@ -77,6 +77,7 @@ post-process = False
 pix-fmt =
 preopts =
 postopts = -level,4.0,-crf_max,0.0,-bf,5,-refs,5,-direct-pred,auto,-subq,8,-trellis,2,-bufsize,31250k,-maxrate,25000k,-preset,slow,-rc-lookahead,50
+
 [uTorrent]
 couchpotato-label = couchpotato
 sickbeard-label = sickbeard
