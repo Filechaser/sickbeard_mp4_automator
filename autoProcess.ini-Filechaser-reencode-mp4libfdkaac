@@ -1,1 +1,134 @@
-TODO
+[SickBeard]
+host = localhost
+port = 8081
+ssl = False
+api_key =
+web_root =
+username =
+password =
+
+[CouchPotato]
+host = localhost
+port = 5050
+username =
+password =
+apikey =
+delay = 65
+method = renamer
+delete_failed = False
+ssl = False
+web_root =
+
+[Sonarr]
+host = localhost
+port = 8989
+apikey =
+ssl = False
+web_root =
+
+[Radarr]
+host = localhost
+port = 7878
+apikey =
+ssl = False
+web_root =
+
+[MP4]
+ffmpeg = ffmpeg
+ffprobe = ffprobe
+threads = auto
+output_directory =
+copy_to =
+move_to =
+output_extension = mp4
+output_format = mp4
+delete_original = True
+relocate_moov = True
+ios-audio = False
+ios-first-track-only = False
+ios-audio-filter =
+max-audio-channels =
+audio-language =
+audio-default-language =
+audio-codec = libfdk_aac,eac3,ac3,mp3
+audio-filter =
+audio-channel-bitrate = 256
+video-codec = h264,x264
+video-bitrate = 30000
+video-crf = 18
+video-max-width =
+h264-max-level =
+aac_adtstoasc = False
+use-qsv-decoder-with-encoder = False
+subtitle-codec = srt
+subtitle-language =
+subtitle-default-language =
+subtitle-encoding =
+convert-mp4 = True
+fullpathguess = True
+tagfile = False
+tag-language = de
+download-artwork = poster
+download-subs = False
+embed-subs = False
+sub-providers = addic7ed, podnapisi, thesubdb, opensubtitles
+permissions = 777
+post-process = False
+pix-fmt =
+preopts =
+postopts = -level,4.0,-crf_max,0.0,-bf,5,-refs,5,-direct-pred,auto,-subq,8,-trellis,2,-bufsize,31250k,-maxrate,25000k,-preset,slow,-rc-lookahead,50
+
+[uTorrent]
+couchpotato-label = couchpotato
+sickbeard-label = sickbeard
+sickrage-label = sickrage
+sonarr-label = sonarr
+radarr-label = radarr
+bypass-label = bypass
+convert = True
+webui = False
+action_before = stop
+action_after = removedata
+host = http://localhost:8080/
+username =
+password =
+output_directory =
+
+[SABNZBD]
+convert = True
+sickbeard-category = sickbeard
+sickrage-category = sickrage
+couchpotato-category = couchpotato
+sonarr-category = sonarr
+radarr-category = radarr
+bypass-category = bypass
+output_directory =
+
+[Sickrage]
+host = localhost
+port = 8081
+ssl = False
+api_key =
+web_root =
+username =
+password =
+
+[Deluge]
+couchpotato-label = couchpotato
+sickbeard-label = sickbeard
+sickrage-label = sickrage
+sonarr-label = sonarr
+radarr-label = radarr
+bypass-label = bypass
+convert = True
+host = localhost
+port = 58846
+username =
+password =
+output_directory =
+
+[Plex]
+host = localhost
+port = 32400
+refresh = true
+token =
