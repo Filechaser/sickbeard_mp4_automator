@@ -54,7 +54,7 @@ General MP4 Configuration
 2. Set the MP4 variables to your desired output
     - `ffmpeg` = Full path to FFMPEG.exe
     - `ffprobe` = Full path to FFPROBE.exe
-    - `threads` = Number of threads for FFMPEG to use, default "auto"
+    - `threads` = Number of threads for FFMPEG to use, default 0 (auto)
     - `output_directory` = you may specify an alternate output directory. Leave blank to use the same directory that the source file is in. All processing will be done in this location. (Do not use for 'Automatically Add to iTunes' folder, iTunes will add prematurely, use `move_to`)
     - `copy_to` = you may specify additional directories for the final product to be replicated to. This will be the last step performed so the file copied will be fully processed. Directories may be separated with a `|` character
     - `move_to` = you may specify one final directory to move the completed file. (Use this option for the 'Automatically Add to iTunes' folder)
@@ -313,6 +313,11 @@ Send a Plex notification as the final step when all processing is completed. Thi
     - `host` - Plex hostname. Default `localhost`
     - `port` - Plex port. Default `32400`
     - `token` - Plex Home Token
+
+If you have secure connections enabled with Plex you will need to add your local IP addresss that the refresh requests are coming from to allow them to trigger the refresh, otherwise you will get an HTTP error. You can alternatively not force encryption by changing `Secure Connections` from `Required` to `Preferred` but this is not recommended as its less secure.
+
+Found under Plex Server Settings > Network > Advanced
+![image](https://user-images.githubusercontent.com/3608298/52716936-e61b4b80-2f6d-11e9-8537-83ab9321948b.png)
 
 Post Process Scripts
 --------------

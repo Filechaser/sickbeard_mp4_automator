@@ -13,6 +13,10 @@ import time
 import requests
 
 logpath = '/var/log/sickbeard_mp4_automator'
+
+if os.environ.get('radarr_eventtype') == "Test":
+    sys.exit(0)
+
 if os.name == 'nt':
     logpath = os.path.dirname(sys.argv[0])
 elif not os.path.isdir(logpath):
@@ -20,7 +24,9 @@ elif not os.path.isdir(logpath):
         os.mkdir(logpath)
     except:
         logpath = os.path.dirname(sys.argv[0])
-fileConfig(os.path.join(os.path.dirname(sys.argv[0]), 'logging.ini'), defaults={'logfilename': os.path.join(logpath, 'index.log')})
+configPath = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), 'logging.ini')).replace("\\", "\\\\")
+logPath = os.path.abspath(os.path.join(logpath, 'index.log')).replace("\\", "\\\\")
+fileConfig(configPath, defaults={'logfilename': logPath})
 log = logging.getLogger("RadarrPostConversion")
 
 log.info("Radarr extra script post processing started.")
@@ -140,3 +146,4 @@ if MkvtoMp4(settings).validSource(inputfile):
             post_processor.run_scripts()
 
         plex.refreshPlex(settings, 'movie', log)
+sys.exit(0)
