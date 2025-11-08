@@ -2,6 +2,17 @@
 ## sickbeard-mp4-automator
 #############################
 autoProcess.ini
+autoProcess.*.ini
+logging.ini
+update.py
+*.sh
+*.bat
+*.backup*
+*.venv.py
+*.json
+config/custom.py
+post_process/*
+!post_process/post_process.md
 
 #################
 ## Eclipse
@@ -76,6 +87,7 @@ build/
 *.tmp
 *.tmp_proj
 *.log
+*.log.*
 *.vspscc
 *.vssscc
 .builds
@@ -197,6 +209,9 @@ $RECYCLE.BIN/
 # Packages
 *.egg
 *.egg-info
+.venv/
+venv/
+env/
 dist/
 build/
 eggs/
@@ -218,3 +233,8 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
+#################
+## VS Code
+#################
+.vscode

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 ##############################################################################
 ### NZBGET POST-PROCESSING SCRIPT                                          ###
@@ -15,9 +15,6 @@
 
 # Convert file before passing to destination (True, False)
 #SHOULDCONVERT=False
-
-# Category for Couchpotato
-#CP_CAT=Couchpotato
 
 # Category for Sonarr
 #SONARR_CAT=Sonarr
@@ -36,6 +33,9 @@
 
 # Custom output_directory setting
 #OUTPUT_DIR=
+
+# Custom path mapping setting
+#PATH_MAPPING=
 
 ### NZBGET POST-PROCESSING SCRIPT                                          ###
 ##############################################################################
@@ -66,51 +66,53 @@ if 'NZBPO_OUTPUT_DIR' in os.environ:
             output_dir += "/"
         #DEBUG#print Overriding output directory
 
-sys.path.append(MP4folder)
+path_mapping = {}
+if 'NZBPO_PATH_MAPPING' in os.environ:
+    pathpairs = os.environ['NZBPO_PATH_MAPPING'].split(",")
+    pathpairs = [x.strip() for x in pathpairs]
+    for listitem in pathpairs:
+        split = listitem.split(":")
+        if len(split) > 1:
+            path_mapping[split[0].strip()] = split[1].strip()
+
+sys.path.insert(0, MP4folder)
 try:
-    from readSettings import ReadSettings
-    from mkvtomp4 import MkvtoMp4
-    from autoprocess import autoProcessMovie, autoProcessTV, autoProcessTVSR, sonarr, radarr
-    import logging
-    from logging.config import fileConfig
+    from resources.readsettings import ReadSettings
+    from resources.mediaprocessor import MediaProcessor
+    from resources.log import getLogger
+    from autoprocess import autoProcessTV, autoProcessTVSR, sonarr, radarr
 except ImportError:
     print("[ERROR] Wrong path to sickbeard_mp4_automator: " + os.environ['NZBPO_MP4_FOLDER'])
     print("[ERROR] %s" % traceback.print_exc())
-    sys.exit(0)
+    sys.exit(1)
 
 # Setup Logging
-logpath = '/var/log/sickbeard_mp4_automator'
-if os.name == 'nt':
-    logpath = MP4folder
-elif not os.path.isdir(logpath):
-    try:
-        os.mkdir(logpath)
-    except:
-        logpath = MP4folder
-configPath = os.path.abspath(os.path.join(MP4folder, 'logging.ini')).replace("\\", "\\\\")
-logPath = os.path.abspath(os.path.join(logpath, 'index.log')).replace("\\", "\\\\")
-fileConfig(configPath, defaults={'logfilename': logPath})
-log = logging.getLogger("NZBGetPostProcess")
+log = getLogger("NZBGetPostProcess", MP4folder)
 
 # Determine if conversion will take place
 shouldConvert = (os.environ['NZBPO_SHOULDCONVERT'].lower() in ("yes", "true", "t", "1"))
+
+
+def progressOutput(timecode, debug):
+    log.info(timecode)
+    log.debug(debug)
+
 
 if 'NZBOP_SCRIPTDIR' in os.environ and not os.environ['NZBOP_VERSION'][0:5] < '11.0':
     log.info("Script triggered from NZBGet (11.0 or later).")
 
     path = os.environ['NZBPP_DIRECTORY']  # Path to NZB directory
     nzb = os.environ['NZBPP_NZBFILENAME']  # Original NZB name
-    category = os.environ['NZBPP_CATEGORY']  # NZB Category to determine destination
+    category = os.environ['NZBPP_CATEGORY'].lower().strip()  # NZB Category to determine destination
     #DEBUG#print "Category is %s." % category
 
-    couchcat = os.environ['NZBPO_CP_CAT'].lower()
-    sonarrcat = os.environ['NZBPO_SONARR_CAT'].lower()
-    radarrcat = os.environ['NZBPO_RADARR_CAT'].lower()
-    sickbeardcat = os.environ['NZBPO_SICKBEARD_CAT'].lower()
-    sickragecat = os.environ['NZBPO_SICKRAGE_CAT'].lower()
-    bypass = os.environ['NZBPO_BYPASS_CAT'].lower()
+    sonarrcat = os.environ['NZBPO_SONARR_CAT'].lower().strip()
+    radarrcat = os.environ['NZBPO_RADARR_CAT'].lower().strip()
+    sickbeardcat = os.environ['NZBPO_SICKBEARD_CAT'].lower().strip()
+    sickragecat = os.environ['NZBPO_SICKRAGE_CAT'].lower().strip()
+    bypass = [b.lower().strip() for b in os.environ['NZBPO_BYPASS_CAT'].split(',')]
 
-    categories = [sickbeardcat, couchcat, sonarrcat, radarrcat, sickragecat, bypass]
+    categories = [sickbeardcat, sonarrcat, radarrcat, sickragecat] + bypass
 
     log.debug("Path: %s" % path)
     log.debug("NZB: %s" % nzb)
@@ -174,7 +176,7 @@ if 'NZBOP_SCRIPTDIR' in os.environ and not os.environ['NZBOP_VERSION'][0:5] < '1
         sys.exit(POSTPROCESS_NONE)
 
     # Make sure one of the appropriate categories is set
-    if category.lower() not in categories:
+    if len([x for x in categories if x.startswith(category)]) < 1:
         log.error("Post-Process: No valid category detected. Category was %s." % (category))
         status = 1
         sys.exit(POSTPROCESS_NONE)
@@ -186,56 +188,62 @@ if 'NZBOP_SCRIPTDIR' in os.environ and not os.environ['NZBOP_VERSION'][0:5] < '1
         sys.exit(POSTPROCESS_NONE)
 
     # All checks done, now launching the script.
-    settings = ReadSettings(MP4folder, "autoProcess.ini")
+    settings = ReadSettings(MP4folder)
 
     if shouldConvert:
         if output_dir:
             settings.output_dir = output_dir
-        converter = MkvtoMp4(settings, logger=log)
+        mp = MediaProcessor(settings, logger=log)
+        ignore = []
         for r, d, f in os.walk(path):
             for files in f:
                 inputfile = os.path.join(r, files)
                 #DEBUG#print inputfile
-                #Ignores files under 50MB
-                if os.path.getsize(inputfile) > 50000000:
-                    if MkvtoMp4(settings, logger=log).validSource(inputfile):
-                        try:
-                            output = converter.process(inputfile)
+                info = mp.isValidSource(inputfile)
+                if info and inputfile not in ignore:
+                    log.info("Processing file %s." % inputfile)
+                    try:
+                        output = mp.process(inputfile, info=info, reportProgress=True, progressOutput=progressOutput)
+                        if output and output.get('output'):
                             log.info("Successfully processed %s." % inputfile)
-                        except:
-                            log.exception("File processing failed.")
-        if converter.output_dir:
-            path = converter.output_dir
-    if (category.lower() == categories[0]):
+                            ignore.append(output.get('output'))
+                        else:
+                            log.error("Converting file failed %s." % inputfile)
+                    except:
+                        log.exception("File processing failed.")
+                else:
+                    log.debug("Ignoring file %s." % inputfile)
+        if len(ignore) < 1:
+            log.error("No valid files for processing found, aborting.")
+            sys.exit(POSTPROCESS_ERROR)
+        if settings.output_dir:
+            path = settings.output_dir
+    if (sickbeardcat.startswith(category)):
         #DEBUG#print "Sickbeard Processing Activated"
-        autoProcessTV.processEpisode(path, settings, nzb)
+        autoProcessTV.processEpisode(path, settings, nzb, pathMapping=path_mapping)
         sys.exit(POSTPROCESS_SUCCESS)
-    elif (category.lower() == categories[1]):
-        #DEBUG#print "CouchPotato Processing Activated"
-        autoProcessMovie.process(path, settings, nzb, status)
-        sys.exit(POSTPROCESS_SUCCESS)
-    elif (category.lower() == categories[2]):
+    elif (sonarrcat.startswith(category)):
         #DEBUG#print "Sonarr Processing Activated"
-        success = sonarr.processEpisode(path, settings, True)
+        success = sonarr.processEpisode(path, settings, True, importMode="Move", pathMapping=path_mapping)
         if success:
             sys.exit(POSTPROCESS_SUCCESS)
         else:
-            sys.exit(POSTPROCESS_ERROR)
-    elif (category.lower() == categories[3]):
+            sys.exit(POSTPROCESS_NONE)
+    elif (radarrcat.startswith(category)):
         #DEBUG#print "Radarr Processing Activated"
-        success = radarr.processMovie(path, settings, True)
+        success = radarr.processMovie(path, settings, True, pathMapping=path_mapping)
         if success:
             sys.exit(POSTPROCESS_SUCCESS)
         else:
-            sys.exit(POSTPROCESS_ERROR)
-    elif (category.lower() == categories[4]):
+            sys.exit(POSTPROCESS_NONE)
+    elif (sickragecat.startswith(category)):
         #DEBUG#print "Sickrage Processing Activated"
-        autoProcessTVSR.processEpisode(path, settings, nzb)
+        autoProcessTVSR.processEpisode(path, settings, nzb, pathMapping=path_mapping)
         sys.exit(POSTPROCESS_SUCCESS)
-    elif (category.lower() == categories[5]):
+    elif [x for x in bypass if x.startswith(category)]:
         #DEBUG#print "Bypass Further Processing"
         sys.exit(POSTPROCESS_NONE)
 
 else:
     log.error("This script can only be called from NZBGet (11.0 or later).")
-    sys.exit(0)
+    sys.exit(1)

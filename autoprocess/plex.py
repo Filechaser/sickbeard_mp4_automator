@@ -1,61 +1,97 @@
-#!/usr/bin/env python
-try:
-    from urllib.request import urlopen
-except ImportError:
-    from urllib import urlopen
+#!/usr/bin/env python3
 import logging
-from xml.dom import minidom
+import os
+import requests
+from plexapi.myplex import MyPlexAccount
+from plexapi.server import PlexServer
+from plexapi.library import LibrarySection
+from resources.log import getLogger
+from resources.readsettings import ReadSettings
+from typing import List, Tuple
 
 
-def refreshPlex(settings, source_type, logger=None):
-    if logger:
-        log = logger
+def refreshPlex(settings: ReadSettings, path: str = None, logger: logging.Logger = None):
+    log = logger or getLogger(__name__)
+
+    log.info("Starting Plex refresh.")
+
+    targetpath = os.path.dirname(path)
+    pathMapping = settings.Plex.get('path-mapping', {})
+
+    # Path Mapping
+    targetdirs = targetpath.split(os.sep)
+    for k in sorted(pathMapping.keys(), reverse=True):
+        mapdirs = k.split(os.sep)
+        if mapdirs == targetdirs[:len(mapdirs)]:
+            targetpath = os.path.normpath(os.path.join(pathMapping[k], os.path.relpath(targetpath, k)))
+            log.debug("PathMapping match found, replacing %s with %s, final directory is %s." % (k, pathMapping[k], targetpath))
+            break
+
+    plex = getPlexServer(settings, log)
+
+    log.info("Checking if any sections contain the path %s." % (targetpath))
+
+    if plex:
+        sections: List[LibrarySection] = plex.library.sections()
+
+        section: LibrarySection
+        for section in sections:
+            location: str
+            for location in section.locations:
+                log.debug("Checking section %s path %s." % (section.title, location))
+                if os.path.commonprefix([targetpath, location]) == location:
+                    section.update(path=targetpath)
+                    log.info("Refreshing %s with path %s" % (section.title, targetpath))
     else:
-        log = logging.getLogger(__name__)
+        log.error("Unable to establish Plex server connection.")
 
-    host = settings.Plex['host']
-    port = settings.Plex['port']
-    token = settings.Plex['token']
 
-    log.debug("Host: %s." % host)
-    log.debug("Port: %s." % port)
-    log.debug("Token: %s." % token)
+def getPlexServer(settings: ReadSettings, logger: logging.Logger = None) -> Tuple[PlexServer, dict]:
+    log = logger or getLogger(__name__)
 
-    approved_sources = ['movie', 'show']
-    if settings.Plex['refresh'] and source_type in approved_sources:
-        base_url = 'http://%s:%s/library/sections' % (host, port)
-        refresh_url = '%s/%%s/refresh' % base_url
+    if not settings.Plex.get('username') and not settings.Plex.get('host'):
+        log.error("No plex server settings specified, please update your configuration file.")
+        return None, None
 
-        if token:
-            refresh_url = refresh_url + "?X-Plex-Token=" + token
-            base_url = base_url + "?X-Plex-Token=" + token
-            log.debug("Plex home token detected.")
+    plex: PlexServer = None
+    session: requests.Session = None
 
-        log.debug("Refresh URL: %s." % refresh_url)
-        log.debug("Base URL: %s." % base_url)
+    if settings.Plex.get('ignore_certs'):
+        session = requests.Session()
+        session.verify = False
+        requests.packages.urllib3.disable_warnings()
 
+    log.info("Connecting to Plex server...")
+    if settings.Plex.get('username') and settings.Plex.get('servername'):
         try:
-            refresh(base_url, refresh_url, source_type)
-        except IOError:
-            try:
-                import ssl
-                ctx = ssl.create_default_context()
-                ctx.check_hostname = False
-                ctx.verify_mode = ssl.CERT_NONE
-                refresh_url = refresh_url.replace("http://", "https://")
-                base_url = base_url.replace("http://", "https://")
-                refresh(base_url, refresh_url, source_type, ctx=ctx)
-            except:
-                log.error(refresh_url)
-                log.error(base_url)
-                log.error("Unable to refresh plex https, check your settings.")
-        except Exception:
-            log.exception("Unable to refresh plex, check your settings.")
+            account = None
+            if settings.Plex.get('token'):
+                try:
+                    account = MyPlexAccount(username=settings.Plex.get('username'), token=settings.Plex.get('token'), session=session)
+                except:
+                    log.debug("Unable to connect using token, falling back to password.")
+                    account = None
+            if settings.Plex.get('username') and not account:
+                try:
+                    account = MyPlexAccount(username=settings.Plex.get('username'), password=settings.Plex.get('password'), session=session)
+                except:
+                    log.debug("Unable to connect using username/password.")
+                    account = None
+            if account:
+                plex = account.resource(settings.Plex.get('servername')).connect()
+            if plex:
+                log.info("Connected to Plex server %s using plex.tv account." % (plex.friendlyName))
+        except:
+            log.exception("Error connecting to plex.tv account.")
 
-def refresh(base_url, refresh_url, source_type, ctx=None):
-    xml_sections = minidom.parse(urlopen(base_url, context=ctx))
-    sections = xml_sections.getElementsByTagName('Directory')
-    for s in sections:
-        if s.getAttribute('type') == source_type:
-            url = refresh_url % s.getAttribute('key')
-            urlopen(url, context=ctx)
+    if not plex and settings.Plex.get('host') and settings.Plex.get('port') and settings.Plex.get('token'):
+        protocol = "https://" if settings.Plex.get('ssl') else "http://"
+        try:
+            plex = PlexServer(protocol + settings.Plex.get('host') + ':' + str(settings.Plex.get('port')), settings.Plex.get('token'), session=session)
+            log.info("Connected to Plex server %s using server settings." % (plex.friendlyName))
+        except:
+            log.exception("Error connecting to Plex server.")
+    elif plex and settings.Plex.get('host') and settings.Plex.get('token'):
+        log.debug("Connected to server using plex.tv account, ignoring manual server settings.")
+
+    return plex

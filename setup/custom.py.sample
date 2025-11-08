@@ -1,0 +1,51 @@
+'''
+All of these functions are optional, you can define a single function or all of them depending on your use case
+Samples of the included functions are provided as a reference
+'''
+
+
+def validation(mp, info, path, tagdata):
+    # Custom function that skips HDR files that are missing proper HDR metadata / framedata
+    mp.log.info("Initiating custom validation method.")
+    if mp.isHDR(info.video):
+        hasValidFrameData = mp.hasValidFrameData(info.video.framedata)
+        mp.log.info("ValidFrameData is %s" % hasValidFrameData)
+        return hasValidFrameData
+    return True
+
+
+def blockVideoCopy(mp, stream, path):
+    # Custom function that performs additional check to see if video should not copy
+    mp.log.info("Initiating custom video copy check method.")
+    return False
+
+
+def blockAudioCopy(mp, stream, path):
+    # Custom function that skips HDR files that are missing proper HDR metadata / framedata
+    mp.log.info("Initiating custom audio copy check method.")
+    return False
+
+
+def skipStream(mp, stream, info, path, tagdata):
+    # Custom function that skips over a stream
+    return False
+
+
+def skipUA(mp, stream, info, path, tagdata):
+    # Custom function that skips over creating a universal audio stream
+    return False
+
+
+def streamTitle(mp, stream, options, hdr=False, imageBased=False, path=None, tagdata=None):
+    # Custom function to define steam title, return None to use script default function, return "" to set blank
+    # stream.disposition contains the disposition dictionary
+    # stream.metadata.get('title') contains the original stream title
+    # stream.type to check between audio and subtitle
+    mp.log.info("Initiating custom stream title method.")
+    if stream.type == "audio":
+        return "Surround" if options.get("channels") > 2 else "Stereo"
+    if stream.type == "video":
+        return None
+    if stream.type == "subtitle":
+        return None
+    return None

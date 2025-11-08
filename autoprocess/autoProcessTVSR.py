@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #
 # This file is adapted from the autoProcessTV file included with SickRage.
@@ -6,20 +6,24 @@
 
 from __future__ import with_statement
 
-import os.path
+import os
 import sys
 import logging
 
 sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), 'lib')))
 
 
-def processEpisode(dir_to_process, settings, org_NZB_name=None, status=None, logger=None):
+def processEpisode(dir_to_process, settings, org_NZB_name=None, status=None, logger=None, pathMapping={}):
+    log = logger or logging.getLogger(__name__)
 
-    # Setup logging
-    if logger:
-        log = logger
-    else:
-        log = logging.getLogger(__name__)
+    # Path Mapping
+    targetdirs = dir_to_process.split(os.sep)
+    for k in sorted(pathMapping.keys(), reverse=True):
+        mapdirs = k.split(os.sep)
+        if mapdirs == targetdirs[:len(mapdirs)]:
+            dirName = os.path.normpath(os.path.join(pathMapping[k], os.path.relpath(dir_to_process, k)))
+            log.debug("PathMapping match found, replacing %s with %s, final directory is %s." % (k, pathMapping[k], dirName))
+            break
 
     try:
         import requests
@@ -36,8 +40,11 @@ def processEpisode(dir_to_process, settings, org_NZB_name=None, status=None, log
 
     host = settings.Sickrage['host']
     port = settings.Sickrage['port']
-    username = settings.Sickrage['user']
-    password = settings.Sickrage['pass']
+    apikey = settings.Sickrage['apikey']
+
+    if apikey == '':
+        log.error("Your Sickrage API Key can not be blank. Update autoProcess.ini.")
+        sys.exit(1)
 
     try:
         ssl = int(settings.Sickrage['ssl'])
@@ -45,19 +52,20 @@ def processEpisode(dir_to_process, settings, org_NZB_name=None, status=None, log
         ssl = 0
 
     try:
-        web_root = settings.Sickrage['web_root']
-        if not web_root.startswith("/"):
-            web_root = "/" + web_root
-        if not web_root.endswith("/"):
-            web_root = web_root + "/"
+        webroot = settings.Sickrage['webroot']
+        if not webroot.startswith("/"):
+            webroot = "/" + webroot
+        if not webroot.endswith("/"):
+            webroot = webroot + "/"
     except:
-        web_root = ""
+        webroot = ""
 
-    params = {}
+    params = {
+        'cmd': 'postprocess',
+        'return_data': 0,
+        'path': dir_to_process
+    }
 
-    params['quiet'] = 1
-
-    params['dir'] = dir_to_process
     if org_NZB_name is not None:
         params['nzbName'] = org_NZB_name
 
@@ -69,27 +77,22 @@ def processEpisode(dir_to_process, settings, org_NZB_name=None, status=None, log
     else:
         protocol = "http://"
 
-    url = protocol + host + ":" + port + web_root + "home/postprocess/processEpisode"
-    login_url = protocol + host + ":" + port + web_root + "login"
+    url = "{}{}:{}{}api/{}/".format(protocol, host, port, webroot, apikey)
 
     log.debug('Host: %s.' % host)
     log.debug('Port: %s.' % port)
-    log.debug('Username: %s.' % username)
-    log.debug('Password: %s.' % password)
+    log.debug('Sickrage apikey: %s.' % apikey)
     log.debug('Protocol: %s.' % protocol)
-    log.debug('Web Root: %s.' % web_root)
+    log.debug('Web Root: %s.' % webroot)
     log.debug('URL: %s.' % url)
-    log.debug('Login URL: %s.' % login_url)
+    log.debug('Params: %s.' % params)
 
     log.info("Opening URL: %s." % url)
 
     try:
-        sess = requests.Session()
-        sess.post(login_url, data={'username': username, 'password': password}, stream=True, verify=False)
-        result = sess.get(url, params=params, stream=True, verify=False)
-        lastline = None
+        r = requests.get(url, params=params, verify=False, allow_redirects=False, stream=True)
 
-        for line in result.iter_lines():
+        for line in r.iter_lines():
             if line:
                 log.debug(line.strip())
                 lastline = line.strip()

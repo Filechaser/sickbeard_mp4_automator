@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 
 class BaseFormat(object):
@@ -107,6 +107,15 @@ class WebVTTFormat(BaseFormat):
     format_name = 'webvtt'
     ffmpeg_format_name = 'webvtt'
 
+
+class PGSFormat(BaseFormat):
+    """
+    PGS subtitle format
+    """
+    format_name = 'pgs'
+    ffmpeg_format_name = 'sup'
+
+
 class SsaFormat(BaseFormat):
     """
     SSA subtitle format
@@ -114,8 +123,25 @@ class SsaFormat(BaseFormat):
     format_name = 'ass'
     ffmpeg_format_name = 'ass'
 
+
+class DVDSubFormat(BaseFormat):
+    """
+    MKS subtitle format
+    """
+    format_name = 'dvd_subtitle'
+    ffmpeg_format_name = 'matroska'
+
+
+class DVBSubFormat(BaseFormat):
+    """
+    MKS subtitle format
+    """
+    format_name = 'dvb_subtitle'
+    ffmpeg_format_name = 'matroska'
+
+
 format_list = [
     OggFormat, AviFormat, MkvFormat, WebmFormat, FlvFormat,
     MovFormat, Mp4Format, MpegFormat, Mp3Format, SrtFormat,
-    WebVTTFormat, SsaFormat
+    WebVTTFormat, SsaFormat, PGSFormat, DVDSubFormat, DVBSubFormat
 ]
